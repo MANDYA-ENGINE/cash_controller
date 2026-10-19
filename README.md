@@ -38,6 +38,18 @@ rtl/
 testbench/
   memory_model.v
   tb_cache_controller.v
+  tb_cold_miss.v
+  tb_read_write_hits.v
+  tb_lru.v
+  tb_dirty_eviction.v
+  tb_write_allocate.v
+
+outputs/
+  cold_miss.png.jpg
+  rw_hits.png
+  lru.png
+  dirty.png
+  write_allocate.png
 ```
 
 ## Design
@@ -199,3 +211,63 @@ PASS: all 1024 backing-memory words match the CPU reference model
 
 The current tests cover functional behavior. Reset during an active transaction,
 continuously queued CPU requests, and FPGA timing have not been tested.
+
+### Short waveform tests
+
+Five separate tests isolate the main cache operations. Each checks its results
+and prints a `PASS` or `FAIL` message.
+
+| Simulation top | Scenario | Run length |
+| --- | --- | --- |
+| `tb_cold_miss` | Four-word refill and readback | 470 ns |
+| `tb_read_write_hits` | Read hit, write hit, updated data | 530 ns |
+| `tb_lru` | Replacement after changing the most recently used way | 1,100 ns |
+| `tb_dirty_eviction` | Dirty write-back, refill, and reload | 1,560 ns |
+| `tb_write_allocate` | Write miss followed by readback of all four words | 530 ns |
+
+Select the desired simulation top, launch behavioral simulation, and enter
+`run all` in the simulation console. The five Vivado waveform captures are
+shown below and stored in `outputs/`.
+
+## Waveform results
+
+### Cold miss
+
+The first read requests `0x008`. The cache fetches all four words starting at
+`0x000` and returns `CAFE0002`. The following reads hit the same cached line.
+
+![Cold miss and four-word refill](outputs/cold_miss.png.jpg)
+
+### Read and write hits
+
+After the initial refill, a read of `0x004` returns `CAFE0001`. Writing
+`DEADBEEF` sets the dirty bit, and the next read returns the updated value.
+The neighboring word at `0x008` remains `CAFE0002`. No memory requests occur
+during these hits.
+
+![Read and write hits](outputs/rw_hits.png)
+
+### LRU replacement
+
+Lines `0x000` and `0x080` occupy the two ways of set 0. Reading `0x000` again
+makes way 1 the replacement choice. Loading `0x100` replaces `0x080`, while
+`0x000` stays cached. The final access to `0x080` causes another miss.
+
+![LRU replacement](outputs/lru.png)
+
+### Dirty eviction
+
+The test modifies all four words of line `0x000`. When that line is evicted,
+the cache writes the words back before fetching line `0x100`. Reloading the
+old line returns the stored `DEAD0000` through `DEAD0003` values.
+
+![Dirty write-back and refill](outputs/dirty.png)
+
+### Write allocation
+
+A write to `0x18C` misses, so the cache first fetches the line starting at
+`0x180`. It then writes `12345678` into the last word. Readback confirms the
+new value and the unchanged neighboring words `CAFE0060`, `CAFE0061`, and
+`CAFE0062`.
+
+![Write allocation and readback](outputs/write_allocate.png)
