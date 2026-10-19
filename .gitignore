@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Local copies
+Archive/
+Archive.zip
+
+# Vivado projects and generated simulation files
+.Xil/
+*.cache/
+*.gen/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*.xpr
+*.jou
+*.log
+*.str
+*.wdb
+*.vcd
+*.vvp
+xsim.dir/
